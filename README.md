@@ -13,7 +13,7 @@ Current excluded creator ID list can be found at https://yiff.party/exclusions.j
 - [ ] Parser — converts HTML page into machine-readable format
   - [x] Basic parsing
   - [x] Tests
-  - [ ] Running tests against all pages
+  - [ ] Running tests against all pages (to make sure parser correctly handles all possible cases)
   - [ ] Interface
 - [ ] Crawler — scans through the site to create a list of files to download
   - [x] Basic stuff
@@ -41,4 +41,6 @@ There is currently no way to run anything without editing the code.
 
 ## Related projects
 
-- kemono.party ([website](https://kemono.party/), [github](https://github.com/OpenYiff/Kemono))
+- [kemono.party](https://kemono.party/) ([github](https://github.com/OpenYiff/Kemono)) — open source yiff.party reimplementation.
+- yiff-dl ([website](https://m-rcus.github.io/yiff-dl/), [github](https://github.com/M-rcus/yiff-dl)) — similar project written in node.js, but with more generic parser.
+
