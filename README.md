@@ -13,7 +13,7 @@ Current excluded creator ID list can be found at https://yiff.party/exclusions.j
 - [ ] Parser — converts HTML page into machine-readable format
   - [x] Basic parsing
   - [x] Tests
-  - [ ] Running tests against all pages (to make sure parser correctly handles all possible cases)
+  - [x] Running tests against all pages (to make sure parser correctly handles all possible cases)
   - [ ] Interface
 - [ ] Crawler — scans through the site to create a list of files to download
   - [x] Basic stuff

@@ -104,8 +104,7 @@ class WebsiteParser {
 
         // POSTS
 
-        $unwrapTagsNop = 'a, strong, ul, ol, li, b, i, u, em, ins, div'; // @@@warn!
-        $unwrapTags = 'a, strong, ul, ol, li, b, i, u, em, ins, div, p'; // @@@warn!
+        $unwrapTags = 'a, strong, ul, ol, li, b, i, u, em, ins, div, p, font, blockquote, h1, h2, h3, h4, h5, h6, br, hr'; // @@@warn!
 
         $o['posts'] = [];
         $o['posts_storage_required'] = 0;
@@ -121,7 +120,7 @@ class WebsiteParser {
                     FILTER_VALIDATE_INT, ['flags' => FILTER_NULL_ON_FAILURE]);
             // thumbnail url
             $p['thumb_url'] = $post->first('>*> .card-image > img::attr(data-src)');
-            $dbgr && $dbgr->postMust1Rm('>*> .card-image > img');
+            $dbgr && $dbgr->postMust1Rm('>*> .card-image > img')->postMustBeEmpty('>*> .card-image', true);
             // ---
             // .card-content #1
             // content_title
@@ -207,6 +206,8 @@ class WebsiteParser {
             $dbgr && $dbgr->postRmAll("{$post1cs} .yp-post-comment-avatar[data-src]")
                             ->postRmAll("{$post1cs} .yp-post-comment-head")
                             ->postRmAll("{$post1cs} img.post-img-inline[data-src]") // [data-media-id] // @@@warn!
+                            // ->postRmAll("{$post1cs} .yp-post-comment-body img[src*=\"patreonusercontent.com/\"]") // @@@warn!
+                            ->postRmAll("{$post1cs} .yp-post-comment-body img") // @@@warn!
                             ->postUnwrap("{$post1cs} .yp-post-comment-body", $unwrapTags) // @@@warn!
                             ->postMustNotHaveChildren("{$post1cs} .yp-post-comment-body", true)
                             ->postMustBeEmpty("{$post1cs} .yp-post-comment > div", true)
@@ -215,6 +216,28 @@ class WebsiteParser {
                             ->postMustBeEmpty("{$post1cs}", true)
             ;
             unset($post1cs);
+
+            // 20259648 page1 p36073545
+            // .card-reveal > .card-embed (copy-paste of content_embed - ".card-content > .card-embed")
+            $embed = $post->first('>*> .card-reveal > .card-embed > div');
+            $p['reveal_embed'] = $embed ? ( $embed->innerHtml() ) : null;
+            if ($embed) {
+                $embedText = $post->first('>*> .card-reveal > .card-embed > .card-title::text');
+
+                $dbgr && $dbgr->postAssert(
+                                !$embedText || trim($embedText) === 'Embed data',
+                                ">*> .card-reveal > .card-embed > .card-title::text === {$embedText}"
+                );
+            }
+            unset($embed, $embedText);
+            $dbgr && $dbgr
+                            ->postMustBeOnly('>*> .card-reveal > .card-embed')
+                            ->postMustBeOnly('>*> .card-reveal > .card-embed > div')
+                            ->postRmAll('>*> .card-reveal > .card-embed > div')
+                            ->postRmAll('>*> .card-reveal > .card-embed > hr')
+                            ->postMustNotHaveChildren(">*> .card-reveal > .card-embed > .card-title", true)
+                            ->postMustBeEmpty('>*> .card-reveal > .card-embed', true)
+            ;
 
             // ###################
             // .card-content #2
@@ -238,6 +261,10 @@ class WebsiteParser {
                     }
                 }
             }
+            $dbgr && $dbgr->postRmAll('>*> .card-content > .post-body a', function(Element $e) {
+                        $href = $e->attr('href');
+                        return preg_match('#\\A/patreon_inline/#', $href);
+                    });
             $dbgr && $dbgr
                             ->postRmAll('>*> .card-content > .post-body br')
                             ->postRmAll('>*> .card-content > .post-body img.post-img-inline[data-src][data-media-id]')
@@ -259,6 +286,8 @@ class WebsiteParser {
             }
             $dbgr && $dbgr->postRmAll("{$post2cs} .yp-post-comment-avatar[data-src]")
                             ->postRmAll("{$post2cs} .yp-post-comment-head")
+                            // ->postRmAll("{$post2cs} .yp-post-comment-body img[src*=\"patreonusercontent.com/\"]") // @@@warn!
+                            ->postRmAll("{$post2cs} .yp-post-comment-body img") // @@@warn!
                             ->postUnwrap("{$post2cs} .yp-post-comment-body", $unwrapTags) // @@@warn!
                             ->postMustNotHaveChildren("{$post2cs} .yp-post-comment-body", true)
                             ->postMustBeEmpty("{$post2cs} .yp-post-comment > div", true)
@@ -269,6 +298,7 @@ class WebsiteParser {
             unset($post2cs);
 
             // 13756532 page6
+            // .card-content > .card-embed
             $embed = $post->first('>*> .card-content > .card-embed > div');
             $p['content_embed'] = $embed ? ( $embed->innerHtml() ) : null;
             if ($embed) {
@@ -279,6 +309,7 @@ class WebsiteParser {
                                 ">*> .card-content > .card-embed > .card-title::text === {$embedText}"
                 );
             }
+            unset($embed, $embedText);
 
             $dbgr && $dbgr
                             ->postMustBeOnly('>*> .card-content > .card-embed')
@@ -288,14 +319,12 @@ class WebsiteParser {
                             ->postMustNotHaveChildren(">*> .card-content > .card-embed > .card-title", true)
                             ->postMustBeEmpty('>*> .card-content > .card-embed', true)
             ;
-            $dbgr && $dbgr
-                            ->postRmAll(">*> .card-content br")
-                            ->postMustBeEmpty(">*> .card-content");
             // @@@TODO //
             // ###################
             $p['reveal_files'] = [];
             // echo htmlspecialchars($post->first('>*> .card-reveal > .card-attachments')->first('>*> p > a')->html());
             // die;
+            // >*> .card-reveal > .card-attachment
             foreach ($post->find('>*> .card-reveal > .card-attachments') as $attach) {
                 $p2 = [];
                 foreach ($attach->find('>*> p > a') as $a) {
@@ -336,9 +365,77 @@ class WebsiteParser {
                 ];
                 $p['reveal_files'][] = $tmp;
             }
+            $dbgr && $dbgr
+                            ->postRmAll('>*> .card-reveal > .card-attachments > hr')
+                            ->postRmAll('>*> .card-reveal > .card-attachments > .card-title')
+                            ->postMustNotHaveChildren('>*> .card-reveal > .card-attachments > p > a', true)
+                            ->postRmAll('>*> .card-reveal > .card-attachments > p br')
+                            ->postMustNotHaveChildren('>*> .card-reveal > .card-attachments > p', true)
+                            ->postMustBeEmpty('>*> .card-reveal > .card-attachments', true)
+            ;
+            // .card-reveal END
+            // copy-paste start:
+            // >*> .card-content > .card-attachment
+            // <editor-fold defaultstate="collapsed" desc="copy-paste">
+            $p['content_files'] = [];
+            foreach ($post->find('>*> .card-content > .card-attachments') as $attach) {
+                $p2 = [];
+                foreach ($attach->find('>*> p > a') as $a) {
+                    $p2[] = [
+                        'name' => $a->first('text()', Query::TYPE_XPATH),
+                        'url' => $a->attr('href'),
+                    ];
+                }
+                // echo htmlspecialchars(json_encode($p2));
+                // die;
+                $file_sizes = join(' ', $attach->find('>*> p::text'));
+                if (!preg_match_all('#\\s*\\(([^)]*+)\\)#s', $file_sizes, $m, PREG_PATTERN_ORDER)) {
+                    throw new Exception("Unable to parse attachment size: ");
+                }
+                $file_sizes = $m[1];
+                unset($m);
+                $file_sizes_c = count($file_sizes);
+                if (count($p2) != $file_sizes_c) {
+                    $a = count($p2);
+                    $file_sizes_c = count($file_sizes);
+                    throw new Exception("Unable to parse attachment sizes - {$a} files, {$file_sizes_c} sizes");
+                }
+                for ($i = 0; $i < $file_sizes_c; $i++) {
+                    $p2['size_h'] = $file_sizes[$i];
+                    $num = self::parseBytes($file_sizes[$i]);
+                    $p2['size'] = $num;
+                    if ($num) {
+                        $o['posts_storage_required'] += $num;
+                        $p['post_storage_required'] += $num;
+                    }
+                }
+                unset($m, $num, $prefix);
+                unset($i, $file_sizes_c);
+                // 'file_sizes' => $file_sizes, // $attach->find('>*> p::text'),
+                $tmp = [
+                    'title' => $attach->first('.card-title::text'),
+                    'files' => $p2,
+                ];
+                $p['content_files'][] = $tmp;
+            }
+            $dbgr && $dbgr
+                            ->postRmAll('>*> .card-content > .card-attachments > hr')
+                            ->postRmAll('>*> .card-content > .card-attachments > .card-title')
+                            ->postMustNotHaveChildren('>*> .card-content > .card-attachments > p > a', true)
+                            ->postRmAll('>*> .card-content > .card-attachments > p br')
+                            ->postMustNotHaveChildren('>*> .card-content > .card-attachments > p', true)
+                            ->postMustBeEmpty('>*> .card-content > .card-attachments', true)
+            ;
+            // </editor-fold>
+            // .card-content END
+            // copy-paste end
 
+            $dbgr && $dbgr->postMustBeEmpty('>*> .card-reveal', true);
+            $dbgr && $dbgr
+                            ->postRmAll(">*> .card-content br")
+                            ->postMustBeEmpty(">*> .card-content", true);
             // ###################
-            // end
+            // post end
             $o['posts'][] = $p;
             $dbgr->debugPostEnd();
         }

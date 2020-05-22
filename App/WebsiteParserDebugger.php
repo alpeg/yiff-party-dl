@@ -28,8 +28,17 @@ class WebsiteParserDebugger {
     }
 
     public function debugPostEnd() {
-        echo htmlspecialchars($this->post->html());
-        echo "\n==========================\n==========================\n==========================\n";
+        try {
+            $this->postMustBeEmpty('>*', true);
+            if (!$this->post->html() == '') {
+                throw new Error("Post must be absolutely empty after parsing");
+            }
+        } catch (\Throwable $t) {
+            echo "\n==========================\n";
+            echo htmlspecialchars($this->post->html());
+            echo "\n==========================\n";
+            throw $t;
+        }
         $this->post = null;
     }
 
@@ -113,7 +122,7 @@ class WebsiteParserDebugger {
             $ex = "{$expression} {$tag}";
             $i = 0;
             do {
-                if ($i++ > 50)
+                if ($i++ > 5000) // 224084 page24 p6668049 - 200, 7738442 page5 p29348959 - ??
                     throw new Error("postUnwrap very deep loop here!");
                 $continueLoop = false;
                 $v2 = $this->post->first($ex);
@@ -148,6 +157,7 @@ class WebsiteParserDebugger {
 
     public function postMust1Rm($expression) {
         $this->postMustBeOnly($expression)->postRmFirst($expression);
+        return $this;
     }
 
     public function postMustBeOnly($expression) {

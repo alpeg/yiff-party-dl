@@ -90,15 +90,19 @@ class Loader {
         $ci = 0;
         foreach ($exclusions as $id) {
             $ci++;
+            // if ($ci < 151)continue;
             $i = 1;
             $key = "{$id}/{$i}";
-            echo "Parsing {$key}\n";
+            echo "===\n";
+            echo "Parsing {$key} (creator {$ci} of {$c})\n";
             $parsed = WebsiteParser::parseSplash($this->storager->readText($key), true);
+            $this->storager->store($key, $parsed);
             $pages = $parsed['meta']['pages'];
             for ($i = 2; $i <= $pages; $i++) {
                 $key = "{$id}/{$i}";
                 echo "Parsing {$key} (creator {$ci} of {$c})\n";
                 $parsed = WebsiteParser::parseSplash($this->storager->readText($key), true);
+                $this->storager->store($key, $parsed);
             }
         }
         echo "Parsing done.\n";
