@@ -19,3 +19,4 @@ nbdist/
 # local
 /default_storage/
 /test_storage/
+/config.yaml

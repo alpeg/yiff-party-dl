@@ -58,7 +58,8 @@ class Storager {
         file_put_contents($fn, $o);
     }
 
-    function __construct() {
+    function __construct($name = 'default_storage') {
+        $this->folder = __DIR__ . '/../' . $name;
         if (!is_dir($this->folder)) {
             mkdir($this->folder);
         }

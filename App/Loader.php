@@ -1,9 +1,10 @@
 <?php
 
-namespace App;
+use App\HttpClient;
+use App\Storager;
+use App\WebsiteParser;
 
-use Error;
-use GuzzleHttp\Client;
+namespace App;
 
 /**
  * Description of Loader
@@ -13,7 +14,7 @@ use GuzzleHttp\Client;
  */
 class Loader {
 
-    public Client $client;
+    public HttpClient $http;
 
     /*
      * try {
@@ -29,39 +30,46 @@ class Loader {
     public Storager $storager;
 
     function __construct($storageFolder = null) {
-        $this->client = new Client([
-            'base_uri' => 'https://yiff.party/',
-            'proxy' => 'socks5://127.0.0.1:11180',
-            'timeout' => 10,
-            'headers' => [
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0',
-            ]
-        ]);
+        $this->http = new HttpClient('https://yiff.party/');
         $this->storager = new Storager();
     }
 
-    public function storeExclusions() {
-        $e = $this->exclusionsJson();
+    /**
+     * 
+     * @deprecated
+     */
+    public function downloadAndStoreExclusions() {
+        $e = $this->downloadExclusionsJson();
         $j = \json_decode($e);
-        $this->storager->storeText('exclusions', $e);
-        $this->storager->store('exclusions', $j);
+        //$this->storager->storeText('exclusions', $e);
+        //$this->storager->store('exclusions', $j);
     }
 
-    public function loadExclusions() {
-        $exclusions = $this->storager->read('exclusions')['exclusions'];
+    public function downloadAndParseExclusions() {
+        $exclusions = $this->storager->read('exclusions');
+        if (!$exclusions) {
+            fwrite(STDERR, "You must download excluded ID list first.\n");
+            exit(1);
+        }
+        $exclusions = $exclusions['exclusions'];
+        $exclusionsCount = count($exclusions);
+        $exclusionsI = 0;
         foreach ($exclusions as $id) {
+            $exclusionsI++;
             $key = "{$id}/1";
-            if ($this->storager->existsText($key))
+            if ($this->storager->exists($key))
                 continue;
-            echo "Getting {$id}\n";
+            echo "Getting {$id} ({$exclusionsI} of {$exclusionsCount})\n";
             $splash = $this->loadSplash($id);
             if (!$splash)
-                throw new Error('wtf?');
+                throw new Exception('wtf?');
             $this->storager->storeText("{$id}/1", $splash);
             $this->storager->store("{$id}/1", WebsiteParser::parseSplash($splash));
         }
         echo "Done1.\n";
+        $exclusionsI = 0;
         foreach ($exclusions as $id) {
+            $exclusionsI++;
             $i = 1;
             $key = "{$id}/{$i}";
             if (!$this->storager->exists($key) || !$this->storager->existsText($key))
@@ -71,12 +79,12 @@ class Loader {
             unset($page1);
             for ($i = 2; $i <= $pages; $i++) {
                 $key = "{$id}/{$i}";
-                if ($this->storager->exists($key) || $this->storager->existsText($key))
+                if ($this->storager->exists($key))
                     continue;
-                echo "Getting {$id} ({$i} of {$pages})\n";
+                echo "Getting {$id} (page {$i} of {$pages}) (creator {$exclusionsI} of {$exclusionsCount})\n";
                 $splash = $this->loadSplash($id, $i);
                 if (!$splash)
-                    throw new Error('wtf?');
+                    throw new Exception('wtf?');
                 $this->storager->storeText($key, $splash);
                 $this->storager->store($key, WebsiteParser::parseSplash($splash));
             }
@@ -84,7 +92,7 @@ class Loader {
         echo "Done2.\n";
     }
 
-    public function reparseExclusions() {
+    public function reparseExclusions($debug = true) {
         $exclusions = $this->storager->read('exclusions')['exclusions'];
         $c = count($exclusions);
         $ci = 0;
@@ -95,13 +103,13 @@ class Loader {
             $key = "{$id}/{$i}";
             echo "===\n";
             echo "Parsing {$key} (creator {$ci} of {$c})\n";
-            $parsed = WebsiteParser::parseSplash($this->storager->readText($key), true);
+            $parsed = WebsiteParser::parseSplash($this->storager->readText($key), $debug);
             $this->storager->store($key, $parsed);
             $pages = $parsed['meta']['pages'];
             for ($i = 2; $i <= $pages; $i++) {
                 $key = "{$id}/{$i}";
                 echo "Parsing {$key} (creator {$ci} of {$c})\n";
-                $parsed = WebsiteParser::parseSplash($this->storager->readText($key), true);
+                $parsed = WebsiteParser::parseSplash($this->storager->readText($key), $debug);
                 $this->storager->store($key, $parsed);
             }
         }
@@ -110,29 +118,70 @@ class Loader {
 
     public function loadSplash(int $id, int $page = 1) {
         $pageq = ($page && $page > 1) ? "?p={$page}" : '';
-        $rq = $this->client->request('GET', "/patreon/{$id}{$pageq}");
-        // $rq = $this->client->request('GET', "http://httpstat.us/200?sleep=10000");
+        $rq = $this->http->client->request('GET', "/patreon/{$id}{$pageq}");
+        // $rq = $this->http->client->request('GET', "http://httpstat.us/200?sleep=10000");
         $body = $rq->getBody()->getContents();
         // file_put_contents("test_storage/_body{$id}.html", $body);
         return $body;
         // return $rq->getStatusCode();
     }
 
-    public function exclusionsJson() {
-        $rq = $this->client->request('GET', "/exclusions.json");
-        $body = $rq->getBody()->getContents();
-        return $body;
+    /**
+     * 
+     * @deprecated
+     */
+    public function downloadExclusionsJson() {
+        throw new Exception("Exclusions are not available anymore.");
+        //return $this->http->client->request('GET', "/exclusions.json")->getBody()->getContents();
     }
 
     public static function fatalNull($v) {
         if ($v === null) {
-            throw new Error("Assertion failed.");
+            throw new Exception("Assertion failed.");
         }
         return $v;
     }
 
+    /**
+     * 
+     * @deprecated
+     */
     public function parseSplash($html) {
         return WebsiteParser::parseSplash($html, true);
+    }
+
+    public function calcStorageForAll() {
+        $exclusions = $this->storager->read('exclusions')['exclusions'];
+        $exclusionsCount = count($exclusions);
+        $exclusionsI = 0;
+        foreach ($exclusions as $id) {
+            $exclusionsI++;
+            $i = 1;
+            $key = "{$id}/{$i}";
+            if (!$this->storager->exists($key)) {
+                echo "Creator {$id}: No data";
+                continue;
+            }
+            $page1 = $this->storager->read($key);
+            $pages = $page1['meta']['pages'];
+            $ss = round($page1['sharedfiles_storage_required'] / (1024 * 1024));
+            $sp = 0;
+            unset($page1);
+            for ($i = 1; $i <= $pages; $i++) {
+                $key = "{$id}/{$i}";
+                if (!$this->storager->exists($key)) {
+                    echo "Creator {$id}: No more data";
+                    continue;
+                }
+                $POST = $this->storager->read($key);
+                $sp += $POST['posts_storage_required'];
+                // $ss = round($POST['sharedfiles_storage_required'] / (1024 * 1024));
+                // echo "Creator {$id} ({$exclusionsI}/{$exclusionsCount}) (page {$i} of {$pages}) ({$sp} posts, {$ss} shareds)\n";
+            }
+            $sp = round($sp) / (1024 * 1024);
+            echo "Creator {$id} ({$exclusionsI}/{$exclusionsCount}): {$pages} pages | {$ss} MiB Shared files | {$sp} MiB Shared files\n";
+        }
+        echo "Done2.\n";
     }
 
 }

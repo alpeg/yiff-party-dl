@@ -1,3 +1,11 @@
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
+## Project status: abandoned
+
+It was impossible to download most of the files as yiff.party kept returning errors.
+
+And now the yiff.party is officially dead, so there is no point in working on this project.
+
 ## yiff-party-dl
 
 This is a [yiff.party](https://yiff.party/) parser that extracts links and relevant information.
@@ -19,7 +27,7 @@ Current excluded creator ID list can be found at https://yiff.party/exclusions.j
   - [x] Basic stuff
   - [ ] ???
   - [ ] Interface
-- [ ] Downloader — downloads all or partial links 
+- [ ] Downloader — downloads all or partial links
 - [ ] Verifier — checks that files was downloaded correctly
 
 Project goal is to download everything listed for exclusion before Monday, 1 June.

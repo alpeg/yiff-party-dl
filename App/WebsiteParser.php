@@ -102,6 +102,17 @@ class WebsiteParser {
         $o['meta']['pages'] = filter_var($m[2], FILTER_VALIDATE_INT, ['flags' => FILTER_NULL_ON_FAILURE]);
         $o['meta']['page_nav'] = $pages;
 
+        $o['meta']['url_splash'] = null;
+        if (preg_match('#\\A.*\'([^\']*)\'.*\\z#', $doc->first(".yp-info-col::attr(style)"), $m)) {
+            $o['meta']['url_splash'] = $m[1];
+        } else {
+            throw new Exception("Parse error: no .yp-info-col::attr(style)");
+        }
+        $o['meta']['url_avatar'] = $doc->first(".yp-info-col .yp-info-avatar .yp-info-img::attr(src)");
+        if (!$o['meta']['url_avatar']) {
+            throw new Exception("Parse error: no .yp-info-col .yp-info-avatar .yp-info-img::attr(src)");
+        }
+
         // POSTS
 
         $unwrapTags = 'a, strong, ul, ol, li, b, i, u, em, ins, div, p, font, blockquote, h1, h2, h3, h4, h5, h6, br, hr'; // @@@warn!
@@ -348,9 +359,9 @@ class WebsiteParser {
                     throw new Exception("Unable to parse attachment sizes - {$a} files, {$file_sizes_c} sizes");
                 }
                 for ($i = 0; $i < $file_sizes_c; $i++) {
-                    $p2['size_h'] = $file_sizes[$i];
+                    $p2[$i]['size_h'] = $file_sizes[$i];
                     $num = self::parseBytes($file_sizes[$i]);
-                    $p2['size'] = $num;
+                    $p2[$i]['size'] = $num;
                     if ($num) {
                         $o['posts_storage_required'] += $num;
                         $p['post_storage_required'] += $num;
@@ -401,9 +412,9 @@ class WebsiteParser {
                     throw new Exception("Unable to parse attachment sizes - {$a} files, {$file_sizes_c} sizes");
                 }
                 for ($i = 0; $i < $file_sizes_c; $i++) {
-                    $p2['size_h'] = $file_sizes[$i];
+                    $p2[$i]['size_h'] = $file_sizes[$i];
                     $num = self::parseBytes($file_sizes[$i]);
-                    $p2['size'] = $num;
+                    $p2[$i]['size'] = $num;
                     if ($num) {
                         $o['posts_storage_required'] += $num;
                         $p['post_storage_required'] += $num;
@@ -437,7 +448,7 @@ class WebsiteParser {
             // ###################
             // post end
             $o['posts'][] = $p;
-            $dbgr->debugPostEnd();
+            $dbgr && $dbgr->debugPostEnd();
         }
 
         // yp-posts-paginate-buttons
@@ -459,9 +470,7 @@ class WebsiteParser {
             if ($size) {
                 $o['sharedfiles_storage_required'] += $size;
             }
-
-
-
+            $f['url'] = $sf->first(">*> .card-action > a::attr(href)");
             $o['sharedfiles'][] = $f;
         }
 
